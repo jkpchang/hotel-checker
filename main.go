@@ -12,6 +12,8 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
+
+
 // Config holds the application configuration
 type Config struct {
 	GmailUser     string
@@ -134,39 +136,46 @@ func (hc *HotelChecker) SendEmail(subject, message string) error {
 	return nil
 }
 
-// RunCheck orchestrates the availability check and SMS notification
-func (hc *HotelChecker) RunCheck(checkIn, checkOut string) error {
+// RunCheck orchestrates the availability check and email notification
+func (hc *HotelChecker) RunCheck(checkIn, checkOut string) (bool, error) {
 	log.Printf("Checking availability for %s to %s", checkIn, checkOut)
 	
 	available, err := hc.CheckAvailability(checkIn, checkOut)
 	if err != nil {
-		return fmt.Errorf("failed to check availability: %w", err)
+		return false, fmt.Errorf("failed to check availability: %w", err)
 	}
 
 	if available {
 		log.Printf("Room is available! Sending email notification...")
 		subject := "Hotel Room Available!"
 		message := fmt.Sprintf("Olympic Village Inn One Bedroom Deluxe Suite is available for %s to %s", checkIn, checkOut)
-		return hc.SendEmail(subject, message)
+		err = hc.SendEmail(subject, message)
+		if err != nil {
+			return true, fmt.Errorf("room available but failed to send email: %w", err)
+		}
+		return true, nil
 	} else {
 		log.Printf("Room is not available")
-		return nil
+		return false, nil
 	}
 }
 
 func main() {
 	log.Printf("Starting hotel availability check...")
 
-	// Parse command line arguments
-	if len(os.Args) != 3 {
-		log.Fatal("Usage: go run main.go <check-in-date> <check-out-date>")
+	// Check if date ranges file exists
+	dateRangesFile := "date_ranges.txt"
+	if _, err := os.Stat(dateRangesFile); os.IsNotExist(err) {
+		log.Fatalf("Date ranges file not found: %s", dateRangesFile)
 	}
 
-	checkIn := os.Args[1]
-	checkOut := os.Args[2]
+	// Read date ranges from file
+	dateRanges, err := readDateRanges(dateRangesFile)
+	if err != nil {
+		log.Fatalf("Error reading date ranges: %v", err)
+	}
 
-	log.Printf("Check-in: %s", checkIn)
-	log.Printf("Check-out: %s", checkOut)
+	log.Printf("Found %d date ranges to check", len(dateRanges))
 
 	// Validate Gmail environment variables
 	gmailUser := os.Getenv("GMAIL_USER")
@@ -185,9 +194,91 @@ func main() {
 
 	checker := NewHotelChecker(config)
 
-	if err := checker.RunCheck(checkIn, checkOut); err != nil {
-		log.Fatalf("Error: %v", err)
+	// Check each date range
+	availableRanges := []string{}
+	for _, dateRange := range dateRanges {
+		log.Printf("Checking availability for %s to %s", dateRange.checkIn, dateRange.checkOut)
+		
+		available, err := checker.RunCheck(dateRange.checkIn, dateRange.checkOut)
+		if err != nil {
+			log.Printf("Error checking %s to %s: %v", dateRange.checkIn, dateRange.checkOut, err)
+			continue
+		}
+		
+		if available {
+			availableRanges = append(availableRanges, fmt.Sprintf("%s to %s", dateRange.checkIn, dateRange.checkOut))
+		}
+	}
+
+	if len(availableRanges) > 0 {
+		log.Printf("Found availability for %d date range(s): %v", len(availableRanges), availableRanges)
+	} else {
+		log.Printf("No availability found for any date ranges")
 	}
 
 	log.Printf("Check completed successfully")
+}
+
+// DateRange represents a check-in and check-out date pair
+type DateRange struct {
+	checkIn  string
+	checkOut string
+}
+
+// readDateRanges reads date ranges from a file
+func readDateRanges(filename string) ([]DateRange, error) {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	var dateRanges []DateRange
+
+	for i, line := range lines {
+		line = strings.TrimSpace(line)
+		
+		// Skip empty lines and comments
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		parts := strings.Split(line, ",")
+		if len(parts) != 2 {
+			log.Printf("Warning: Invalid format on line %d: %s", i+1, line)
+			continue
+		}
+
+		checkIn := strings.TrimSpace(parts[0])
+		checkOut := strings.TrimSpace(parts[1])
+
+		// Validate date format (YYYY-MM-DD)
+		if !isValidDate(checkIn) || !isValidDate(checkOut) {
+			log.Printf("Warning: Invalid date format on line %d: %s", i+1, line)
+			continue
+		}
+
+		dateRanges = append(dateRanges, DateRange{
+			checkIn:  checkIn,
+			checkOut: checkOut,
+		})
+	}
+
+	return dateRanges, nil
+}
+
+// isValidDate checks if a string is in YYYY-MM-DD format
+func isValidDate(date string) bool {
+	if len(date) != 10 {
+		return false
+	}
+	
+	// Check if it's in YYYY-MM-DD format
+	if date[4] != '-' || date[7] != '-' {
+		return false
+	}
+	
+	// Try to parse the date
+	_, err := time.Parse("2006-01-02", date)
+	return err == nil
 }

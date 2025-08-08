@@ -1,0 +1,7 @@
+# Hotel Availability Checker - Date Ranges to Monitor
+# Format: check-in-date,check-out-date
+# One date range per line
+# Copy this file to date_ranges.txt and add your desired dates
+
+2026-01-01,2026-01-05
+2025-12-21,2025-12-25

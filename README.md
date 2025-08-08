@@ -1,165 +1,94 @@
 # Hotel Availability Checker
 
-A Go program that checks the Olympic Village Inn's direct booking site for the availability of "One Bedroom Deluxe Suite" and sends email notifications via Gmail SMTP when available.
+Automatically checks for hotel room availability and sends email notifications when rooms become available.
 
 ## Features
 
-- Checks Olympic Village Inn direct booking site for specific room availability
-- Sends email notifications via Gmail SMTP when room is found
-- Configurable date ranges for testing
-- Designed for deployment on Render
+- ✅ **Automated checking** - Runs via cron job on your local machine
+- ✅ **Multiple date ranges** - Monitor multiple date ranges simultaneously
+- ✅ **Email notifications** - Sends Gmail notifications when rooms are available
+- ✅ **Headless Chrome** - Uses browser automation to check real-time availability
+- ✅ **Configurable dates** - Easy to add/remove date ranges via text file
 
-## Prerequisites
+## Quick Start
 
-- Go 1.21 or later
-- Gmail account with 2-Factor Authentication enabled
-- App Password generated for SMTP access
-
-## Setup
-
-### 1. Install Dependencies
-
-```bash
-go mod tidy
-```
-
-### 2. Gmail Configuration
-
-You'll need the following Gmail credentials:
-- **Gmail User**: Your Gmail address
-- **Gmail Password**: Your 16-character App Password (not your regular password)
-- **To Email**: Email address to receive notifications
-
-See `GMAIL_SETUP.md` for detailed setup instructions.
-
-### 3. Environment Variables
-
-#### For Local Testing:
-Set the following environment variables:
+### 1. Set Environment Variables
 
 ```bash
 export GMAIL_USER="your-email@gmail.com"
-export GMAIL_PASSWORD="your-16-char-app-password"
+export GMAIL_PASSWORD="your-app-password"
 export TO_EMAIL="recipient@example.com"
 ```
 
-#### For Render Deployment:
-Add these in your Render dashboard under "Environment" tab:
-- `GMAIL_USER` = your-email@gmail.com
-- `GMAIL_PASSWORD` = your-16-char-app-password
-- `TO_EMAIL` = recipient@example.com
+### 2. Configure Date Ranges
 
-**Security Note:** Render environment variables are encrypted and never exposed to your GitHub repository.
-
-## Usage
-
-### Local Testing
-
-1. **Default dates (Dec 22-25, 2025):**
-   ```bash
-   go run main.go
-   ```
-
-2. **Custom date range:**
-   ```bash
-   go run main.go 2025-12-20 2025-12-23
-   ```
-
-3. **Build and run:**
-   ```bash
-   go build -o hotel-checker
-   ./hotel-checker
-   ```
-
-### Testing Different Date Ranges
-
-To test with different dates, simply provide them as command line arguments:
+Copy the example file and edit it with your desired dates:
 
 ```bash
-# Test for January dates
-go run main.go 2025-01-15 2025-01-18
-
-# Test for February dates  
-go run main.go 2025-02-10 2025-02-13
+cp date_ranges.txt.example date_ranges.txt
 ```
+
+Then edit `date_ranges.txt` to add your desired dates:
+
+```
+2026-01-01,2026-01-05
+2025-12-21,2025-12-25
+```
+
+### 3. Build the Program
+
+```bash
+./build.sh
+```
+
+### 4. Set Up Cron Job
+
+```bash
+./setup_cron.sh
+```
+
+This will set up a cron job to run every day at 5:50 PM.
 
 ## How It Works
 
-1. **URL Construction**: The program constructs the hotel's direct booking URL with the specified parameters
-2. **Web Scraping**: Uses headless Chrome to load JavaScript-rendered content and search for the specific room type
-3. **Availability Check**: Looks for the room type "One Bedroom Deluxe Suite" and availability indicators
-4. **Email Notification**: If the room is available, sends email notification via Gmail SMTP
+1. **Cron job runs** daily at 5:50 PM
+2. **Program reads** date ranges from `date_ranges.txt`
+3. **Checks availability** for each date range using headless Chrome
+4. **Sends email** if any rooms are available
+5. **Logs results** to `~/hotel_checker.log`
 
-## Deployment on Render
+## Files
 
-### 1. Create a Render Account
-- Sign up at [render.com](https://render.com)
-- Connect your GitHub repository
+- `main.go` - Main program
+- `date_ranges.txt` - Date ranges to monitor
+- `run_checker.sh` - Script executed by cron
+- `setup_cron.sh` - Sets up the cron job
+- `build.sh` - Builds the program
+- `CRON_SETUP.md` - Detailed cron setup guide
 
-### 2. Create a New Web Service
-- Click "New +" → "Web Service"
-- Connect your GitHub repository
-- Configure the service:
+## Monitoring
 
-**Build Command:**
+### Check logs:
 ```bash
-go mod tidy && go build -o hotel-checker
+tail -f ~/hotel_checker.log
 ```
 
-**Start Command:**
+### View cron job:
 ```bash
-./hotel-checker
+crontab -l
 ```
 
-### 3. Environment Variables
-Add these environment variables in Render dashboard under "Environment" tab:
-- `GMAIL_USER` = your-email@gmail.com
-- `GMAIL_PASSWORD` = your-16-char-app-password
-- `TO_EMAIL` = recipient@example.com
+### Test manually:
+```bash
+./hotel_checker
+```
 
-**Security:** These are encrypted and never exposed to your GitHub repository.
+## Requirements
 
-### 4. Scheduling
-To run this as a scheduled job:
-- Create a new "Cron Job" service instead of "Web Service"
-- Set the schedule (e.g., every hour: `0 * * * *`)
-- Use the same build and start commands
+- macOS with Go installed
+- Gmail account with app password
+- Chrome/Chromium browser
 
 ## Troubleshooting
 
-### Common Issues
-
-1. **"Room not found"**: The room type text might have changed on Expedia. Check the actual page content.
-
-2. **Email not sending**: Verify your Gmail credentials and App Password setup.
-
-3. **Rate limiting**: Expedia may block requests if too frequent. Consider adding delays between checks.
-
-4. **HTML parsing issues**: Expedia's page structure may change. The program uses simple text matching.
-
-### Debug Mode
-
-To see more detailed output, the program logs all steps. Check the logs for:
-- URL being accessed
-- Room type search results
-- SMS sending status
-
-## File Structure
-
-```
-hotel/
-├── main.go          # Main program
-├── go.mod           # Go module file
-└── README.md        # This file
-```
-
-## Dependencies
-
-- `github.com/chromedp/chromedp`: Headless Chrome automation
-
-## Notes
-
-- This is a basic implementation that may need adjustments based on the hotel's actual page structure
-- The room availability detection is simplified and may need refinement
-- Consider implementing more sophisticated parsing for production use
-- Uses the hotel's direct booking site to avoid rate limiting issues
+See `CRON_SETUP.md` for detailed troubleshooting guide.
