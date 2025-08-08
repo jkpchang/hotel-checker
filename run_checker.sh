@@ -45,7 +45,7 @@ if [ -z "$GMAIL_USER" ] || [ -z "$GMAIL_PASSWORD" ] || [ -z "$TO_EMAIL" ]; then
 fi
 
 # Run the hotel checker
-log_message "Running checker for dates: $CHECK_IN_DATE to $CHECK_OUT_DATE"
+log_message "Running checker for all date ranges in date_ranges.txt"
 
 # Export environment variables for the Go program
 export GMAIL_USER
